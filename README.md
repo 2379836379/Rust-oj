@@ -1,10 +1,6 @@
 ﻿# Rust-oj
 ## Project principles
 
-- Implement features **in the same order as `QT/README.md`**, and regressively match the original Qt behavior.
-- Do **not** add extra features beyond what exists in the Qt version.
-- Keep the front-end page routing / pagination structure and layouts as close to the Qt project as possible.
-- Use the same fixed endpoints as the Qt version for OJ-judger / OJ-server.
 - Syntax highlighting: **Python only**.
 - AI: **basic chat only** (no tool calling).
 
@@ -48,6 +44,4 @@ cargo check
 ## Notes
 
 - OpenJudge may redirect submission result pages to a `*.openjudge.cn` subdomain (e.g. `cxsjsx.openjudge.cn`).
- This merges root-domain cookies into subdomain requests (Qt `CookieStore::cookiesForUrl()` parity)
- so that result pages can be fetched and parsed correctly after submit.
 
