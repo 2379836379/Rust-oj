@@ -1383,3 +1383,14 @@ button:hover {
   min-height: 0;
   height: 100%;
 }
+
+
+/* ProblemPage result panes shrink with Submit frame (prevent overflow) */
+#problemPage #problemResultPanel,
+#problemPage #problemResultStack,
+#problemPage #problemTestPaneSplitter,
+#problemPage .problemTestPane,
+#problemPage #problemResultStack > textarea[data-obj="problemResultText"],
+#problemPage #problemResultStack textarea[data-obj="problemResultText"] {
+  min-width: 0;
+}

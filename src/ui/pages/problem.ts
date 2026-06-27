@@ -506,6 +506,7 @@ export function createProblemPage(services: AppServices, init: ProblemInit) {
     minRightPx: number;
     enabled?: () => boolean;
     onCommit?: (leftPx: number, rightPx: number) => void;
+    onDrag?: () => void;
   }) => {
     const { container, handle, left, right, handlePx, minLeftPx, minRightPx } = opts;
     const enabled = opts.enabled ?? (() => true);
@@ -528,6 +529,7 @@ export function createProblemPage(services: AppServices, init: ProblemInit) {
         let nextLeft = startLeft + dx;
         nextLeft = Math.max(minLeftPx, Math.min(total - minRightPx, nextLeft));
         setGridColsPx(container, nextLeft, handlePx, total - nextLeft);
+        opts.onDrag?.();
       };
 
       const up = () => {
@@ -601,6 +603,7 @@ export function createProblemPage(services: AppServices, init: ProblemInit) {
     minLeftPx: 320,
     minRightPx: 420,
     onCommit: (l, r) => { contentSizes = [Math.round(l), Math.round(r)]; },
+    onDrag: () => { applyTestPaneSizes(); },
   });
 
   attachColSplitter({
@@ -613,6 +616,7 @@ export function createProblemPage(services: AppServices, init: ProblemInit) {
     minRightPx: 320,
     enabled: () => aiVisible,
     onCommit: (l, r) => { workspaceSizes = [Math.round(l), Math.round(r)]; },
+    onDrag: () => { applyTestPaneSizes(); },
   });
 
   const submitResultPanel = submitPaneSplitter.querySelector("#problemResultPanel") as HTMLElement;
@@ -744,7 +748,20 @@ export function createProblemPage(services: AppServices, init: ProblemInit) {
     const handlePx = 8;
     const rect = (testPane as HTMLElement).getBoundingClientRect();
     const total = Math.max(0, rect.width - handlePx);
-    const [l, r] = fitTwoSizes(total, testPaneSizes[0], testPaneSizes[1], 220, 220);
+
+    let [l, r] = fitTwoSizes(total, testPaneSizes[0], testPaneSizes[1], 0, 0);
+    const sum = l + r;
+    if (sum < total) {
+      if (sum > 0) {
+        const ratio = l / sum;
+        l = Math.max(0, Math.round(total * ratio));
+        r = Math.max(0, total - l);
+      } else {
+        l = Math.max(0, Math.round(total / 2));
+        r = Math.max(0, total - l);
+      }
+    }
+
     testPaneSizes = [l, r];
     setGridColsPx(testPane as HTMLElement, l, handlePx, r);
   };
@@ -966,8 +983,11 @@ Action: ${submit.submit_action_url ?? ""}`.trim();
         sourceText: editor.textarea.value,
       });
 
-      submitOutput.value = `Submit Status: ${resp.ok ? "OK" : "Failed"} (${resp.status_code})
-Final: ${resp.final_url}`;
+      submitOutput.value = `Submit Status: ${resp.ok && resp.inferred_result_url ? "Submitted" : (resp.ok ? "Submit response received" : "Submit failed")} (${resp.status_code})
+Final: ${resp.final_url}` + (resp.inferred_result_url ? `
+Result: ${resp.inferred_result_url}` : "") + (resp.message ? `
+
+${resp.message}` : "");
 
       if (resp.inferred_result_url) {
         const result: ResultPageInfo = await services.invoke("oj_open_result", {

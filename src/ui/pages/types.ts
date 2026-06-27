@@ -112,6 +112,7 @@ export type SubmitResponse = {
   status_code: number;
   final_url: string;
   inferred_result_url?: string | null;
+  message?: string | null;
 };
 
 export type ResultPageInfo = {

@@ -1,6 +1,6 @@
 ﻿use std::sync::Arc;
 
-use cookie_store::CookieStore;
+use cookie_store::{CookieStore, RawCookie};
 use reqwest::header::{HeaderMap, HeaderValue, ACCEPT, CONTENT_TYPE, REFERER, USER_AGENT};
 use reqwest::{Client, Response};
 use reqwest_cookie_store::CookieStoreMutex;
@@ -15,8 +15,43 @@ pub struct OpenJudgeSession {
     cookies: Arc<CookieStoreMutex>,
 }
 
+fn is_openjudge_subdomain(host: &str) -> bool {
+    let host = host.trim().to_ascii_lowercase();
+    host == "openjudge.cn" || host.ends_with(".openjudge.cn")
+}
+
+fn merge_root_cookies_for_subdomain(store: &mut CookieStore, url: &Url) {
+    let Some(host) = url.host_str() else {
+        return;
+    };
+    if !is_openjudge_subdomain(host) || host.eq_ignore_ascii_case("openjudge.cn") {
+        return;
+    }
+
+    let root = match Url::parse("http://openjudge.cn/") {
+        Ok(u) => u,
+        Err(_) => return,
+    };
+
+    // Qt parity: when requesting a *.openjudge.cn page, also send cookies that are stored
+    // for the root host openjudge.cn.
+    let pairs: Vec<(String, String)> = store
+        .get_request_values(&root)
+        .map(|(n, v)| (n.to_string(), v.to_string()))
+        .collect();
+
+    for (name, value) in pairs {
+        let line = format!("{name}={value}");
+        if let Ok(raw) = RawCookie::parse(line) {
+            let _ = store.insert_raw(&raw, url);
+        }
+    }
+}
+
 impl OpenJudgeSession {
     pub fn new(base_url: Url, cookies: CookieStore) -> Result<Self, String> {
+        let mut cookies = cookies;
+        merge_root_cookies_for_subdomain(&mut cookies, &base_url);
         let cookies = Arc::new(CookieStoreMutex::new(cookies));
 
         let mut headers = HeaderMap::new();
@@ -76,7 +111,15 @@ impl OpenJudgeSession {
     }
 
     pub async fn get_html(&self, url: Url, referer: Option<&Url>) -> Result<(Url, String), String> {
-                let mut req = self.client.get(url.clone());
+        {
+            let mut store = self
+                .cookies
+                .lock()
+                .map_err(|_| "cookie store poisoned".to_string())?;
+            merge_root_cookies_for_subdomain(&mut store, &url);
+        }
+
+        let mut req = self.client.get(url.clone());
         let ref_value = referer
             .map(|u| u.to_string())
             .unwrap_or_else(|| self.base_url.to_string());
@@ -102,6 +145,14 @@ impl OpenJudgeSession {
         referer: Option<&Url>,
         ajax: bool,
     ) -> Result<(u16, Url, String), String> {
+        {
+            let mut store = self
+                .cookies
+                .lock()
+                .map_err(|_| "cookie store poisoned".to_string())?;
+            merge_root_cookies_for_subdomain(&mut store, &url);
+        }
+
         let mut req = self.client.post(url).body(body);
         let ref_value = referer
             .map(|u| u.to_string())
@@ -125,3 +176,4 @@ impl OpenJudgeSession {
         Ok((status, final_url, text))
     }
 }
+

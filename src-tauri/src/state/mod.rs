@@ -92,6 +92,7 @@ pub struct SubmitResponse {
     pub status_code: u16,
     pub final_url: String,
     pub inferred_result_url: Option<String>,
+    pub message: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -148,23 +149,148 @@ fn json_error_message(body: &[u8]) -> Option<String> {
     v.get("message").and_then(|m| m.as_str()).map(|s| s.to_string())
 }
 
-fn infer_result_url(final_url: &Url, body: &str) -> Option<Url> {
-    static RE: Lazy<Regex> = Lazy::new(|| Regex::new(r"/submission/\d+/?").unwrap());
 
-    if final_url.path().contains("/submission/") {
+fn infer_result_url_from_json(final_url: &Url, body: &str) -> Option<Url> {
+    let v: serde_json::Value = serde_json::from_str(body).ok()?;
+
+    fn find_url_in_json(v: &serde_json::Value) -> Option<&str> {
+        match v {
+            serde_json::Value::String(s) => {
+                let t = s.trim();
+                if !t.is_empty() {
+                    return Some(t);
+                }
+                None
+            }
+            serde_json::Value::Array(a) => a.iter().find_map(find_url_in_json),
+            serde_json::Value::Object(o) => {
+                // Prefer fields that look like redirects/urls.
+                for (k, val) in o.iter() {
+                    let k = k.as_str();
+                    if k.eq_ignore_ascii_case("redirect")
+                        || k.eq_ignore_ascii_case("redirectUrl")
+                        || k.eq_ignore_ascii_case("redirect_url")
+                        || k.to_lowercase().contains("redirect")
+                        || k.to_lowercase().ends_with("url")
+                        || k.eq_ignore_ascii_case("url")
+                    {
+                        if let Some(s) = val.as_str() {
+                            let t = s.trim();
+                            if !t.is_empty() {
+                                return Some(t);
+                            }
+                        }
+                    }
+                }
+                // Fallback: search anywhere.
+                o.values().find_map(find_url_in_json)
+            }
+            _ => None,
+        }
+    }
+
+    fn find_id_in_json(v: &serde_json::Value) -> Option<i64> {
+        match v {
+            serde_json::Value::Number(n) => n.as_i64().or_else(|| n.as_u64().map(|x| x as i64)),
+            serde_json::Value::String(s) => s.trim().parse::<i64>().ok(),
+            serde_json::Value::Array(a) => a.iter().find_map(find_id_in_json),
+            serde_json::Value::Object(o) => {
+                // Prefer solution/submission id keys.
+                for (k, val) in o.iter() {
+                    let lk = k.to_lowercase();
+                    if lk == "solutionid"
+                        || lk == "solution_id"
+                        || lk == "submissionid"
+                        || lk == "submission_id"
+                        || lk == "id"
+                    {
+                        if let Some(id) = find_id_in_json(val) {
+                            if id > 0 {
+                                return Some(id);
+                            }
+                        }
+                    }
+                }
+                // Common nesting: { data: { ... } } / { solution: { id: ... } }
+                if let Some(id) = o.get("data").and_then(find_id_in_json) {
+                    if id > 0 {
+                        return Some(id);
+                    }
+                }
+                if let Some(id) = o.get("solution").and_then(find_id_in_json) {
+                    if id > 0 {
+                        return Some(id);
+                    }
+                }
+                o.values().find_map(find_id_in_json)
+            }
+            _ => None,
+        }
+    }
+
+    if let Some(raw) = find_url_in_json(&v) {
+        // Try absolute or relative.
+        if let Ok(u) = Url::parse(raw) {
+            return Some(u);
+        }
+        if let Ok(u) = final_url.join(raw) {
+            return Some(u);
+        }
+    }
+
+    if let Some(id) = find_id_in_json(&v) {
+        let host = final_url.host_str().unwrap_or("");
+        let primary = if host.eq_ignore_ascii_case("noi.openjudge.cn") {
+            format!("/solution/{}/", id)
+        } else {
+            format!("/submission/{}/", id)
+        };
+        if let Ok(u) = final_url.join(&primary) {
+            return Some(u);
+        }
+        let secondary = if primary.starts_with("/solution/") {
+            format!("/submission/{}/", id)
+        } else {
+            format!("/solution/{}/", id)
+        };
+        if let Ok(u) = final_url.join(&secondary) {
+            return Some(u);
+        }
+    }
+
+    None
+}
+fn infer_result_url(final_url: &Url, body: &str) -> Option<Url> {
+    static ABS_RE: Lazy<Regex> = Lazy::new(|| {
+        Regex::new(r#"https?://[^\s"'<>]+/(?:submission|solution)/\d+/?"#)
+            .unwrap_or_else(|_| Regex::new("$^").unwrap())
+    });
+    static REL_RE: Lazy<Regex> = Lazy::new(|| {
+        Regex::new(r"/(submission|solution)/\d+/?")
+            .unwrap_or_else(|_| Regex::new("$^").unwrap())
+    });
+
+    if final_url.path().contains("/submission/") || final_url.path().contains("/solution/") {
         return Some(final_url.clone());
     }
 
-    if let Some(m) = RE.find(body) {
+    if let Some(m) = ABS_RE.find(body) {
+        if let Ok(u) = Url::parse(m.as_str()) {
+            return Some(u);
+        }
+    }
+
+    if let Some(m) = REL_RE.find(body) {
         let rel = &body[m.start()..m.end()];
         return final_url.join(rel).ok();
     }
 
     None
 }
+
 fn is_login_html(html: &str) -> bool {
     html.contains("OpenJudge - Login")
-        || html.contains("你还没有登录")
+        || html.contains("你还没有登录") || html.contains("浣犺繕娌℃湁鐧诲綍")
         || html.contains("/api/auth/login/")
 }
 
@@ -425,8 +551,8 @@ impl AppCtx {
         if class_info.group_entry_url.is_none() {
             let html_len = class_html.len();
             let html_head: String = class_html.chars().take(4000).collect();
-            let has_group_text = class_html.contains("前往小组");
-            let has_login = class_html.contains("OpenJudge - Login") || class_html.contains("你还没有登录");
+            let has_group_text = class_html.contains("鍓嶅線灏忕粍");
+            let has_login = class_html.contains("OpenJudge - Login") || class_html.contains("你还没有登录") || class_html.contains("浣犺繕娌℃湁鐧诲綍");
             println!(
                 "[debug] open_class missing group entry: requested={} final={} len={} has_group_text={} has_login={}\n---- html_head ----\n{}\n---- /html_head ----",
                 class_page_url,
@@ -500,31 +626,64 @@ impl AppCtx {
     ) -> Result<SubmitResponse, String> {
         let session = self.openjudge_session()?;
 
-
         let action = submit_page
             .submit_action_url
             .clone()
             .ok_or_else(|| "submit action url not found".to_string())?;
-        let action_url = Url::parse(&action).map_err(|e| format!("invalid submit action url: {e}"))?;
+        let action_url =
+            Url::parse(&action).map_err(|e| format!("invalid submit action url: {e}"))?;
 
         let referer_url = Url::parse(&submit_page.page_url)
             .map_err(|e| format!("invalid submit page url: {e}"))?;
 
         let payload = build_submit_payload(&submit_page, &language, &source_text)?;
 
-        let (status_code, final_url, body) = session
-            .post_form(action_url, payload, Some(&referer_url), true)
-            .await?;
+        let mut attempt = 0;
+        let (status_code, final_url, body) = loop {
+            let (status_code, final_url, body) = session
+                .post_form(action_url.clone(), payload.clone(), Some(&referer_url), true)
+                .await?;
 
-        save_cookies(&session)?;
+            if !is_login_html(&body) || attempt >= 1 {
+                break (status_code, final_url, body);
+            }
 
-        let inferred = infer_result_url(&final_url, &body).map(|u| u.to_string());
+            // session expired: try relogin once (Qt behavior) then retry
+            attempt += 1;
+            let _ = self.relogin_with_session(&session).await.unwrap_or(false);
+        };
+
+        let _ = save_cookies(&session);
+
+        let inferred = infer_result_url_from_json(&final_url, &body)
+            .or_else(|| infer_result_url(&final_url, &body))
+            .map(|u| u.to_string());
+
+        let ok = status_code >= 200 && status_code < 400;
+        let message = if ok && inferred.is_some() {
+            None
+        } else if let Some(msg) = json_error_message(body.as_bytes()) {
+            Some(msg)
+        } else {
+            let trimmed = body.trim();
+            if trimmed.is_empty() {
+                None
+            } else {
+                let mut t = trimmed.to_string();
+                if t.len() > 800 {
+                    t.truncate(800);
+                    t.push_str("\n...[truncated]");
+                }
+                Some(t)
+            }
+        };
 
         Ok(SubmitResponse {
-            ok: status_code >= 200 && status_code < 400,
+            ok,
             status_code,
             final_url: final_url.to_string(),
             inferred_result_url: inferred,
+            message,
         })
     }
 
@@ -690,5 +849,7 @@ impl AppCtx {
         })
     }
 }
+
+
 
 
