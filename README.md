@@ -41,7 +41,5 @@ cargo check
 
 - See `r/oj-client/tech.md`
 
-## Notes
 
-- OpenJudge may redirect submission result pages to a `*.openjudge.cn` subdomain (e.g. `cxsjsx.openjudge.cn`).
 
