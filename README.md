@@ -1,40 +1,55 @@
-# oj-client (Rust + Tauri 重写版)
+﻿# oj-client (Rust + Tauri rewrite)
 
-此目录用于在 `E:\Rust-oj\r` 下用 Rust + Tauri 重写 `QT/oj-client`（Qt Widgets 版）。
+This directory contains a **Rust + Tauri** rewrite of the Qt Widgets client at `QT/oj-client`.
 
-## 目标拆分（对应 Qt 目录）
+## Project principles
 
-- `QT/oj-client/src/config` → `src-tauri/src/config/*`：配置与运行状态（`config.toml` / `appstate.toml`）
-- `QT/oj-client/src/network` → `src-tauri/src/network/*`：OpenJudge / OpenAI 访问（后续迁移）
-- `QT/oj-client/src/parser` → `src-tauri/src/parser/*`：HTML/结果解析（后续迁移）
-- `QT/oj-client/src/repository` → `src-tauri/src/repository/*`：SQLite/缓存（后续迁移）
-- `QT/oj-client/src/service` → `src-tauri/src/service/*`：业务逻辑（后续迁移）
-- `QT/oj-client/src/ui` → `src/*`：前端 UI（Tauri WebView）
+- Implement features **in the same order as `QT/README.md`**, and regressively match the original Qt behavior.
+- Do **not** add extra features beyond what exists in the Qt version.
+- Keep the front-end page routing / pagination structure and layouts as close to the Qt project as possible.
+- Use the same fixed endpoints as the Qt version for OJ-judger / OJ-server.
+- Syntax highlighting: **Python only**.
+- AI: **basic chat only** (no tool calling).
 
-## 已迁移（当前最小闭环）
+## Layout
 
-- `config.toml`（OpenAI 配置）读写（优先兼容旧路径，默认写入用户配置目录）
-- `appstate.toml`（提醒开关/铃声路径）读写（同上）
-- 一个简单的设置页 UI：可编辑/保存上述配置
+- `src/`: Front-end UI (TypeScript). One file per page (login/home/class/contest/problem/favorite/storage/aiconfig).
+- `src-tauri/`: Rust back-end (Tauri commands + network/parser/cache/storage).
 
-## 开发运行
+Key modules:
+- `src-tauri/src/state/`: `AppCtx` (session, command implementations, business orchestration)
+- `src-tauri/src/network/`: OpenJudge HTTP + cookies
+- `src-tauri/src/parser/`: HTML parsers (Class / Contest / Problem / Submit / Result)
+- `src-tauri/src/cache/`: cache repositories (SQLite)
+- `src-tauri/src/favorite/`: favorites (SQLite)
+- `src-tauri/src/storage/`: storage stats/cleanup, login cache
+- `src-tauri/src/config/`: `config.toml` / `appstate.toml`
 
-前置：
+## Development
 
-- Rust toolchain（stable）
-- Node.js 18+（或更新）
+Requirements:
+- Node.js 18+
+- Rust stable toolchain
 
-命令：
-
+Run (dev):
 ```powershell
 cd r/oj-client
 npm install
 npm run tauri dev
 ```
 
-## 迁移策略建议（后续）
+Rust check:
+```powershell
+cd r/oj-client/src-tauri
+cargo check
+```
 
-1. 先把 “纯逻辑” 从 Qt 拆成 Rust 模块（网络、解析、存储、业务）
-2. UI 只通过 Tauri `invoke` 调用 Rust 的 command（避免前端直接拼 URL/解析 HTML）
-3. 每迁移一个页面（Login/Home/Class/Contest/Problem…），就补齐对应 service + parser + repository
+## Tech report
 
+- See `r/oj-client/tech.md`
+
+## Notes
+
+- OpenJudge may redirect submission result pages to a `*.openjudge.cn` subdomain (e.g. `cxsjsx.openjudge.cn`).
+  This rewrite merges root-domain cookies into subdomain requests (Qt `CookieStore::cookiesForUrl()` parity)
+  so that result pages can be fetched and parsed correctly after submit.
