@@ -1,0 +1,33 @@
+[package]
+name = "oj-client"
+version = "0.1.0"
+description = "OpenJudge desktop client (Rust + Tauri rewrite)"
+authors = []
+edition = "2021"
+
+[lib]
+name = "oj_client"
+path = "src/lib.rs"
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+# app
+directories = "5"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+tauri = { version = "2", features = ["tray-icon"] }
+toml = "0.8"
+url = "2"
+
+# openjudge
+base64 = "0.22"
+cookie_store = { version = "0.21", features = ["serde"] }
+once_cell = "1"
+regex = "1"
+reqwest = { version = "0.12", default-features = false, features = ["cookies", "json", "gzip", "brotli", "deflate", "multipart", "rustls-tls"] }
+reqwest_cookie_store = "0.8"
+
+# cache
+rusqlite = { version = "0.31", features = ["bundled"] }
