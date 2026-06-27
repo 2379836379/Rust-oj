@@ -1,7 +1,4 @@
-﻿# oj-client (Rust + Tauri rewrite)
-
-This directory contains a **Rust + Tauri** rewrite of the Qt Widgets client at `QT/oj-client`.
-
+﻿# Rust-oj
 ## Project principles
 
 - Implement features **in the same order as `QT/README.md`**, and regressively match the original Qt behavior.
@@ -51,5 +48,6 @@ cargo check
 ## Notes
 
 - OpenJudge may redirect submission result pages to a `*.openjudge.cn` subdomain (e.g. `cxsjsx.openjudge.cn`).
-  This rewrite merges root-domain cookies into subdomain requests (Qt `CookieStore::cookiesForUrl()` parity)
-  so that result pages can be fetched and parsed correctly after submit.
+ This merges root-domain cookies into subdomain requests (Qt `CookieStore::cookiesForUrl()` parity)
+ so that result pages can be fetched and parsed correctly after submit.
+
