@@ -1,4 +1,4 @@
-import type { AppServices, IconName } from "../app";
+﻿import type { AppServices, IconName } from "../app";
 import { el, nonEmpty } from "../dom";
 import type {
   AiChatMessage,
@@ -17,11 +17,6 @@ type ProblemInit = {
 };
 
 type CodeMode = "python" | "plain";
-
-function qtButtonObject(objName: string) {
-  // Qt allows repeated objectName; web ids must be unique.
-  return { "data-obj": objName };
-}
 
 function iconButton(
   services: AppServices,
@@ -321,20 +316,21 @@ async function pickFavoriteFolder(services: AppServices): Promise<number | null>
   const folders: FavoriteFolderInfo[] = await services.invoke("oj_favorite_list_folders");
 
   if (folders.length === 0) {
-    const name = (window.prompt("No favorite folders yet. Create one:") ?? "").trim();
+    const name = (window.prompt("Create a folder name:") ?? "").trim();
     if (!name) return null;
     const folderId: number = await services.invoke("oj_favorite_create_folder", { name });
     return folderId;
   }
 
-  const folderNames = folders.map((f) => f.name);
-  const list = folderNames.map((n, i) => String(i + 1) + ". " + n).join("\\n");
-  const typed = (window.prompt("Save current problem to:\\n" + list + "\\n\\nEnter number:") ?? "").trim();
+  const names = folders.map((f) => f.name).join(", ");
+  const typed = (window.prompt(`Save to folder (existing: ${names}). Enter folder name:`) ?? "").trim();
   if (!typed) return null;
 
-  const idx = Number.parseInt(typed, 10);
-  if (!Number.isFinite(idx) || idx < 1 || idx > folders.length) return null;
-  return folders[idx - 1]!.id;
+  const existing = folders.find((f) => f.name === typed);
+  if (existing) return existing.id;
+
+  const folderId: number = await services.invoke("oj_favorite_create_folder", { name: typed });
+  return folderId;
 }
 
 export function createProblemPage(services: AppServices, init: ProblemInit) {
@@ -348,59 +344,60 @@ export function createProblemPage(services: AppServices, init: ProblemInit) {
 
   const homeBtn = iconButton(services, "problemTopHome", "Home", "homepage.svg");
   const themeBtn = iconButton(services, "problemTopTheme", "Dark Mode", "dark-mode.png");
-  (homeBtn as HTMLElement).setAttribute("data-obj", "problemTopActionButton");
-  (themeBtn as HTMLElement).setAttribute("data-obj", "problemTopActionButton");
+  const refreshBtn = iconButton(services, "problemTopRefresh", "Refresh", "refresh.svg");
+
   const topFrame = el("div", { id: "problemTopFrame" }, [
     titleLabel,
-    el("div", { id: "problemTopActions" }, [homeBtn, themeBtn]),
+    el("div", { id: "problemTopActions" }, [homeBtn, themeBtn, refreshBtn]),
   ]);
 
   // tools
   const toolsToggle = el("button", { id: "problemToolsToggleButton" }, ["Tools v"]);
-  const backBtn = el("button", { "data-obj": "problemToolButton" }, ["Back"]);
-  const favBtn = el("button", { "data-obj": "problemToolButton" }, ["Favorite Current Problem"]);
-  const aiBtn = el("button", { "data-obj": "problemToolButton" }, ["AI"]);
+  const backBtn = el("button", { id: "problemToolButton" }, ["Back"]);
+  const favBtn = el("button", { id: "problemToolButton" }, ["Favorite Current Problem"]);
+  const aiBtn = el("button", { id: "problemToolButton" }, ["AI"]);
 
   const toolsPanel = el("div", { id: "problemToolsPanel" }, [backBtn, favBtn, aiBtn]);
 
-  const collapsedBack = el("button", { "data-obj": "problemToolIconButton", title: "Back" }, ["B"]);
-  const collapsedFav = el("button", { "data-obj": "problemToolIconButton", title: "Favorite Current Problem" }, ["F"]);
-  const collapsedAi = el("button", { "data-obj": "problemToolIconButton", title: "AI" }, ["Ai"]);
-  const collapsedPanel = el("div", { id: "problemCollapsedToolsPanel" }, [collapsedBack, collapsedFav, collapsedAi, el("div", { class: "problemFlexSpacer" }, [])]);
+  const collapsedBack = iconButton(services, "problemCollapsedBack", "Back", "back.svg");
+  const collapsedFav = iconButton(services, "problemCollapsedFavorite", "Favorite", "favorite.png");
+  const collapsedAi = iconButton(services, "problemCollapsedAi", "AI", "ai-config.svg", "aiconfig.svg");
+  const collapsedPanel = el("div", { id: "problemCollapsedToolsPanel" }, [collapsedBack, collapsedFav, collapsedAi]);
 
   const leftFrame = el("div", { id: "problemLeftFrame" }, [toolsToggle, toolsPanel, collapsedPanel]);
 
   // problem detail frame
-  const showOriginalBtn = el("button", { "data-obj": "problemRefreshButton" }, ["Original"]);
-  const translateBtn = el("button", { "data-obj": "problemRefreshButton" }, ["Translate"]);
+  const showOriginalBtn = el("button", { id: "problemRefreshButton" }, ["Original"]);
+  const translateBtn = el("button", { id: "problemRefreshButton" }, ["Translate"]);
 
-  const problemHeader = el("div", { class: "problemHeaderRow" }, [
-    el("div", { "data-obj": "problemSectionLabel" }, ["Problem"]),
-    el("div", { class: "problemHeaderActions" }, [showOriginalBtn, translateBtn]),
+  const problemHeader = el("div", { class: "rowline" }, [
+    el("div", { id: "problemSectionLabel" }, ["Problem"]),
+    el("div", { class: "tabs" }, [showOriginalBtn, translateBtn]),
   ]);
 
   const detail = el("div", { id: "problemDetailText" }, ["Loading problem detail..."]);
   const problemFrame = el("div", { id: "problemMiddleFrame" }, [problemHeader, detail]);
 
   // submit frame
-  const submitLabel = el("div", { "data-obj": "problemSectionLabel" }, ["Submit"]);
+  const submitLabel = el("div", { id: "problemSectionLabel" }, ["Submit"]);
   const languageSelect = document.createElement("select");
   languageSelect.id = "problemLanguageCombo";
+  languageSelect.className = "select";
 
   const problemUrl = info.problem_url;
 
   const editor = makeEditor("");
 
-  const testTabBtn = el("button", { "data-obj": "problemResultTabButton" }, ["test"]);
-  const submitTabBtn = el("button", { "data-obj": "problemResultTabButton" }, ["submit"]);
+  const testTabBtn = el("button", { class: "problemResultTabButton active" }, ["test"]);
+  const submitTabBtn = el("button", { class: "problemResultTabButton" }, ["submit"]);
 
   const inputBtn = el("button", { id: "problemInputButton" }, ["input"]);
   const submitBtn = el("button", { id: "problemSubmitButton" }, ["Submit Code"]);
 
-  const testInput = el("textarea", { "data-obj": "problemResultText", placeholder: "Write test input here." }, []) as HTMLTextAreaElement;
-  const testOutput = el("textarea", { "data-obj": "problemResultText", placeholder: "Test output will appear here.", readonly: "true" }, []) as HTMLTextAreaElement;
+  const testInput = el("textarea", { id: "problemTestInput", class: "pre pre-textarea", placeholder: "Write test input here." }, []) as HTMLTextAreaElement;
+  const testOutput = el("pre", { id: "problemTestOutput", class: "pre" }, [""]);
 
-  const submitOutput = el("textarea", { "data-obj": "problemResultText", readonly: "true" }, ["Preparing submit options..."]) as HTMLTextAreaElement;
+  const submitOutput = el("pre", { id: "problemSubmitOutput", class: "pre" }, ["Preparing submit options..."]);
   const testPaneHandle = el("div", { id: "problemTestPaneHandle", class: "splitter-handle v8" }, []);
   const testPane = el("div", { id: "problemTestPaneSplitter" }, [
     el("div", { class: "problemTestPane" }, [testInput]),
@@ -410,9 +407,9 @@ export function createProblemPage(services: AppServices, init: ProblemInit) {
 
   const resultStack = el("div", { id: "problemResultStack" }, [testPane, submitOutput]);
 
-  const resultTabs = el("div", { class: "problemResultTabRow" }, [
-    el("div", { class: "problemResultTabs" }, [testTabBtn, submitTabBtn]),
-    el("div", { class: "problemResultActions" }, [inputBtn, submitBtn]),
+  const resultTabs = el("div", { class: "rowline" }, [
+    el("div", { class: "tabs" }, [testTabBtn, submitTabBtn]),
+    el("div", { class: "tabs" }, [inputBtn, submitBtn]),
   ]);
   const submitPaneHandle = el("div", { id: "problemSubmitPaneHandle", class: "splitter-handle h" }, []);
   const submitPaneSplitter = el("div", { id: "problemSubmitPaneSplitter" }, [
@@ -425,15 +422,15 @@ export function createProblemPage(services: AppServices, init: ProblemInit) {
 
   // ai frame
   const aiFrame = el("div", { id: "problemAiFrame" }, []);
-  const aiLabel = el("div", { "data-obj": "problemSectionLabel" }, ["AI"]);
-  const aiConfigLabel = el("div", { "data-obj": "problemAiMetaLabel" }, ["Config:"]);
-  const aiResponseLabel = el("div", { "data-obj": "problemAiFieldLabel" }, ["Response"]);
-  const aiResponse = el("textarea", { "data-obj": "problemResultText", readonly: "true", placeholder: "AI response will appear here." }, []) as HTMLTextAreaElement;
-  const aiPromptLabel = el("div", { "data-obj": "problemAiFieldLabel" }, ["Prompt"]);
-  const aiPrompt = el("textarea", { "data-obj": "problemCodeEdit", placeholder: "Ask AI about the current problem, code, or test result." }, []) as HTMLTextAreaElement;
-  const aiAskBtn = el("button", { "data-obj": "problemSubmitButton" }, ["Ask"]);
+  const aiLabel = el("div", { id: "problemSectionLabel" }, ["AI"]);
+  const aiConfigLabel = el("div", { id: "problemAiMetaLabel" }, ["Config:"]);
+  const aiResponseLabel = el("div", { id: "problemAiFieldLabel" }, ["Response"]);
+  const aiResponse = el("div", { id: "problemResultText", class: "pre" }, [""]);
+  const aiPromptLabel = el("div", { id: "problemAiFieldLabel" }, ["Prompt"]);
+  const aiPrompt = el("textarea", { id: "problemAiPrompt", class: "pre pre-textarea", placeholder: "Ask AI about the current problem, code, or test result." }, []) as HTMLTextAreaElement;
+  const aiAskBtn = el("button", { id: "problemSubmitButton" }, ["Ask"]);
 
-  aiFrame.append(aiLabel, aiConfigLabel, aiResponseLabel, aiResponse, aiPromptLabel, aiPrompt, el("div", { class: "problemAiAskRow" }, [aiAskBtn]));
+  aiFrame.append(aiLabel, aiConfigLabel, aiResponseLabel, aiResponse, aiPromptLabel, aiPrompt, el("div", { class: "qtActionRow problemActionRow" }, [aiAskBtn]));
   (aiFrame as HTMLElement).style.display = "none";
   const workspaceHandle = el("div", { id: "problemWorkspaceHandle", class: "splitter-handle v4" }, []);
   const workspaceSplitter = el("div", { id: "problemWorkspaceSplitter" }, [submitFrame, workspaceHandle, aiFrame]);
@@ -453,37 +450,6 @@ export function createProblemPage(services: AppServices, init: ProblemInit) {
   let submitPage: SubmitPageInfo | null = null;
   let testing = false;
   let showTestTab = true;
-  // Qt-like splitter sizes (px)
-  let contentSizes: [number, number] = [640, 640];
-  let workspaceSizes: [number, number] = [720, 0];
-  let submitPaneSizes: [number, number] = [360, 240];
-  let testPaneSizes: [number, number] = [320, 320];
-
-  const fitTwoSizes = (total: number, a: number, b: number, minA: number, minB: number): [number, number] => {
-    const t = Math.max(0, Math.floor(total));
-    if (t <= 0) return [Math.max(minA, a), Math.max(minB, b)];
-
-    let left = Math.max(minA, Math.floor(a));
-    let right = Math.max(minB, Math.floor(b));
-    if (left + right <= t) return [left, right];
-
-    const over = left + right - t;
-    const leftSlack = Math.max(0, left - minA);
-    const rightSlack = Math.max(0, right - minB);
-    const slack = leftSlack + rightSlack;
-    if (slack <= 0) return [minA, Math.max(minB, t - minA)];
-
-    const reduceLeft = Math.min(leftSlack, Math.round((over * leftSlack) / slack));
-    left -= reduceLeft;
-    right = Math.max(minB, t - left);
-    if (left + right > t) {
-      const reduceRight = Math.min(right - minB, left + right - t);
-      right -= reduceRight;
-    }
-    left = Math.max(minA, t - right);
-    return [left, right];
-  };
-
   const setGridColsPx = (container: HTMLElement, leftPx: number, handlePx: number, rightPx: number) => {
     const l = Math.max(0, Math.round(leftPx));
     const r = Math.max(0, Math.round(rightPx));
@@ -505,7 +471,6 @@ export function createProblemPage(services: AppServices, init: ProblemInit) {
     minLeftPx: number;
     minRightPx: number;
     enabled?: () => boolean;
-    onCommit?: (leftPx: number, rightPx: number) => void;
   }) => {
     const { container, handle, left, right, handlePx, minLeftPx, minRightPx } = opts;
     const enabled = opts.enabled ?? (() => true);
@@ -534,9 +499,6 @@ export function createProblemPage(services: AppServices, init: ProblemInit) {
         document.removeEventListener("pointermove", move);
         document.removeEventListener("pointerup", up);
         document.body.style.userSelect = "";
-        const finalLeft = left.getBoundingClientRect().width;
-        const finalRight = right.getBoundingClientRect().width;
-        opts.onCommit?.(finalLeft, finalRight);
       };
 
       document.body.style.userSelect = "none";
@@ -553,7 +515,6 @@ export function createProblemPage(services: AppServices, init: ProblemInit) {
     handlePx: number;
     minTopPx: number;
     minBottomPx: number;
-    onCommit?: (topPx: number, bottomPx: number) => void;
   }) => {
     const { container, handle, top, bottom, handlePx, minTopPx, minBottomPx } = opts;
 
@@ -580,9 +541,6 @@ export function createProblemPage(services: AppServices, init: ProblemInit) {
         document.removeEventListener("pointermove", move);
         document.removeEventListener("pointerup", up);
         document.body.style.userSelect = "";
-        const finalLeft = left.getBoundingClientRect().width;
-        const finalRight = right.getBoundingClientRect().width;
-        opts.onCommit?.(finalLeft, finalRight);
       };
 
       document.body.style.userSelect = "none";
@@ -600,7 +558,6 @@ export function createProblemPage(services: AppServices, init: ProblemInit) {
     handlePx: 4,
     minLeftPx: 320,
     minRightPx: 420,
-    onCommit: (l, r) => { contentSizes = [Math.round(l), Math.round(r)]; },
   });
 
   attachColSplitter({
@@ -612,7 +569,6 @@ export function createProblemPage(services: AppServices, init: ProblemInit) {
     minLeftPx: 420,
     minRightPx: 320,
     enabled: () => aiVisible,
-    onCommit: (l, r) => { workspaceSizes = [Math.round(l), Math.round(r)]; },
   });
 
   const submitResultPanel = submitPaneSplitter.querySelector("#problemResultPanel") as HTMLElement;
@@ -624,7 +580,6 @@ export function createProblemPage(services: AppServices, init: ProblemInit) {
     handlePx: 8,
     minTopPx: 200,
     minBottomPx: 160,
-    onCommit: (t, b) => { submitPaneSizes = [Math.round(t), Math.round(b)]; },
   });
 
   const testLeftPane = testPane.children[0] as HTMLElement;
@@ -637,15 +592,12 @@ export function createProblemPage(services: AppServices, init: ProblemInit) {
     handlePx: 8,
     minLeftPx: 220,
     minRightPx: 220,
-    onCommit: (l, r) => { testPaneSizes = [Math.round(l), Math.round(r)]; },
   });
-
-  const setTabChecked = (btn: HTMLElement, checked: boolean) => { btn.dataset.checked = checked ? "true" : "false"; };
 
   const setResultTab = (test: boolean) => {
     showTestTab = test;
-    setTabChecked(testTabBtn as HTMLElement, test);
-    setTabChecked(submitTabBtn as HTMLElement, !test);
+    testTabBtn.classList.toggle("active", test);
+    submitTabBtn.classList.toggle("active", !test);
 
     (testPane as HTMLElement).style.display = test ? "grid" : "none";
     (submitOutput as HTMLElement).style.display = test ? "none" : "block";
@@ -686,79 +638,40 @@ export function createProblemPage(services: AppServices, init: ProblemInit) {
       toolsToggle.title = "Expand Tools";
     }
   };
-  const applyContentSizes = () => {
-    const handlePx = 4;
-    const rect = (contentSplitter as HTMLElement).getBoundingClientRect();
-    const total = Math.max(0, rect.width - handlePx);
-    const [l, r] = fitTwoSizes(total, contentSizes[0], contentSizes[1], 320, 420);
-    contentSizes = [l, r];
-    setGridColsPx(contentSplitter as HTMLElement, l, handlePx, r);
-  };
+  const setAiPanelVisible = (visible: boolean) => {
+    aiVisible = visible;
 
-  const applyWorkspaceSizes = () => {
     const handlePx = 4;
-    const rect = (workspaceSplitter as HTMLElement).getBoundingClientRect();
-    const total = Math.max(0, rect.width - handlePx);
-    if (!aiVisible) {
-      const left = Math.max(420, Math.min(total, workspaceSizes[0] + workspaceSizes[1]));
-      workspaceSizes = [left, 0];
+
+    if (!visible) {
       (aiFrame as HTMLElement).style.display = "none";
       (workspaceHandle as HTMLElement).style.pointerEvents = "none";
-      setGridColsPx(workspaceSplitter as HTMLElement, left, 0, 0);
+      workspaceSplitter.classList.remove("ai-visible");
+      (workspaceSplitter as HTMLElement).style.gridTemplateColumns = "1fr 0px 0px";
       return;
     }
 
-    const [l, r] = fitTwoSizes(total, workspaceSizes[0], workspaceSizes[1], 420, 320);
-    workspaceSizes = [l, r];
     (aiFrame as HTMLElement).style.display = "grid";
     (workspaceHandle as HTMLElement).style.pointerEvents = "auto";
-    setGridColsPx(workspaceSplitter as HTMLElement, l, handlePx, r);
-  };
-
-  const applySubmitPaneSizes = () => {
-    const handlePx = 8;
-    const rect = (submitPaneSplitter as HTMLElement).getBoundingClientRect();
-    const total = Math.max(0, rect.height - handlePx);
-    const topMin = 200;
-    const bottomMin = 160;
-    let top = Math.max(topMin, Math.floor(submitPaneSizes[0]));
-    let bottom = Math.max(bottomMin, Math.floor(submitPaneSizes[1]));
-    if (top + bottom > total) {
-      const extra = top + bottom - total;
-      const topSlack = Math.max(0, top - topMin);
-      const bottomSlack = Math.max(0, bottom - bottomMin);
-      const slack = topSlack + bottomSlack;
-      if (slack > 0) {
-        const reduceTop = Math.min(topSlack, Math.round((extra * topSlack) / slack));
-        top -= reduceTop;
-        bottom = Math.max(bottomMin, total - top);
-        if (top + bottom > total) bottom = Math.max(bottomMin, bottom - (top + bottom - total));
-        top = Math.max(topMin, total - bottom);
-      }
-    }
-    submitPaneSizes = [top, bottom];
-    setGridRowsPx(submitPaneSplitter as HTMLElement, top, handlePx, bottom);
-  };
-
-  const applyTestPaneSizes = () => {
-    const handlePx = 8;
-    const rect = (testPane as HTMLElement).getBoundingClientRect();
+    workspaceSplitter.classList.add("ai-visible");
+    const rect = (workspaceSplitter as HTMLElement).getBoundingClientRect();
     const total = Math.max(0, rect.width - handlePx);
-    const [l, r] = fitTwoSizes(total, testPaneSizes[0], testPaneSizes[1], 220, 220);
-    testPaneSizes = [l, r];
-    setGridColsPx(testPane as HTMLElement, l, handlePx, r);
-  };
 
-  const setAiPanelVisible = (visible: boolean) => {
-    aiVisible = visible;
-    if (visible) {
-      if (workspaceSizes[1] <= 0) {
-        workspaceSizes = [Math.max(420, workspaceSizes[0]), 320];
-      }
-    } else {
-      workspaceSizes = [workspaceSizes[0] + workspaceSizes[1], 0];
+    let leftW = submitFrame.getBoundingClientRect().width;
+    let rightW = aiFrame.getBoundingClientRect().width;
+
+    if (!Number.isFinite(leftW) || leftW <= 0) leftW = Math.max(420, total - 320);
+    if (!Number.isFinite(rightW) || rightW <= 0) {
+      leftW = Math.max(420, leftW);
+      rightW = 320;
     }
-    applyWorkspaceSizes();
+
+    if (leftW + rightW > total) {
+      leftW = Math.max(420, total - rightW);
+      rightW = Math.max(0, total - leftW);
+    }
+
+    setGridColsPx(workspaceSplitter as HTMLElement, leftW, handlePx, Math.max(0, total - leftW));
   };
 
   const refreshDetail = () => {
@@ -863,8 +776,8 @@ ${info.hint ?? ""}`,
     editor.sync();
     editor.textarea.disabled = true;
 
-    testOutput.value = "";
-    submitOutput.value = "Preparing submit options...";
+    testOutput.textContent = "";
+    submitOutput.textContent = "Preparing submit options...";
 
     setResultTab(true);
   };
@@ -918,7 +831,7 @@ ${info.hint ?? ""}`,
 
     refreshEditorLanguageMode();
 
-    submitOutput.value = `Submit page loaded.
+    submitOutput.textContent = `Submit page loaded.
 Action: ${submit.submit_action_url ?? ""}`.trim();
 
     setSubmitEnabled(true);
@@ -930,16 +843,16 @@ Action: ${submit.submit_action_url ?? ""}`.trim();
 
     const submitUrl = nonEmpty(info.submit_url);
     if (!submitUrl) {
-      submitOutput.value = "Submit Status: submit url not found.";
+      submitOutput.textContent = "Submit Status: submit url not found.";
       return;
     }
 
-    submitOutput.value = "Preparing submit options...";
+    submitOutput.textContent = "Preparing submit options...";
     try {
       submitPage = await services.invoke("oj_open_submit", { submitPageUrl: submitUrl });
       showSubmitPageLoaded(submitPage);
     } catch (e) {
-      submitOutput.value = "Submit Status: " + String(e);
+      submitOutput.textContent = "Submit Status: " + String(e);
     }
   };
 
@@ -953,11 +866,11 @@ Action: ${submit.submit_action_url ?? ""}`.trim();
 
     const hasLang = languageSelect.options.length > 0;
     if (!hasLang) {
-      submitOutput.value = "Submit Status: Missing language.";
+      submitOutput.textContent = "Submit Status: Missing language.";
       return;
     }
 
-    submitOutput.value = "Submitting...";
+    submitOutput.textContent = "Submitting...";
 
     try {
       const resp: SubmitResponse = await services.invoke("oj_submit_solution", {
@@ -966,7 +879,7 @@ Action: ${submit.submit_action_url ?? ""}`.trim();
         sourceText: editor.textarea.value,
       });
 
-      submitOutput.value = `Submit Status: ${resp.ok ? "OK" : "Failed"} (${resp.status_code})
+      submitOutput.textContent = `Submit Status: ${resp.ok ? "OK" : "Failed"} (${resp.status_code})
 Final: ${resp.final_url}`;
 
       if (resp.inferred_result_url) {
@@ -982,7 +895,7 @@ ${result.detail_title}` : "",
 ${result.detail_text}` : "",
         ].join("");
 
-        submitOutput.value = lines.trim();
+        submitOutput.textContent = lines.trim();
 
         // poll when waiting (Qt behavior)
         try {
@@ -991,7 +904,7 @@ ${result.detail_text}` : "",
             window.setTimeout(async () => {
               try {
                 const r2: ResultPageInfo = await services.invoke("oj_open_result", { resultPageUrl: result.page_url });
-                submitOutput.value =
+                submitOutput.textContent =
                   `Judge Status: ${r2.status_text ?? "<none>"}` +
                   (r2.detail_title ? `
 
@@ -1008,7 +921,7 @@ ${r2.detail_text}` : "");
         }
       }
     } catch (e) {
-      submitOutput.value = "Submit Status: " + String(e);
+      submitOutput.textContent = "Submit Status: " + String(e);
     }
   };
 
@@ -1017,7 +930,7 @@ ${r2.detail_text}` : "");
     testing = true;
     setResultTab(true);
 
-    testOutput.value = "Running test...";
+    testOutput.textContent = "Running test...";
 
     try {
       const opt = languageSelect.selectedOptions[0];
@@ -1025,7 +938,7 @@ ${r2.detail_text}` : "");
       const mode = inferLangMode(String(label ?? ""), String(languageSelect.value ?? ""));
 
       if (languageSelect.options.length === 0) {
-        testOutput.value = "No language selected.";
+        testOutput.textContent = "No language selected.";
         return;
       }
 
@@ -1039,9 +952,9 @@ ${r2.detail_text}` : "");
         stdinText: testInput.value,
       });
 
-      testOutput.value = resp.body;
+      testOutput.textContent = resp.body;
     } catch (e) {
-      testOutput.value = "Test failed: " + String(e);
+      testOutput.textContent = "Test failed: " + String(e);
     } finally {
       testing = false;
       setResultTab(true);
@@ -1099,19 +1012,36 @@ ${r2.detail_text}` : "");
     const q = aiPrompt.value.trim();
     if (!q) return;
 
-    (aiAskBtn as HTMLButtonElement).setAttribute("disabled", "true");
+    aiAskBtn.setAttribute("disabled", "true");
     try {
       const messages: AiChatMessage[] = [{ role: "user", content: q }];
       const resp: string = await services.invoke("oj_ai_chat", { messages });
-      aiResponse.value = `User
+      aiResponse.textContent = `User
 ${q}
 
 Assistant
 ${resp}`;
     } catch (e) {
-      aiResponse.value = "AI failed: " + String(e);
+      aiResponse.textContent = "AI failed: " + String(e);
     } finally {
-      (aiAskBtn as HTMLButtonElement).removeAttribute("disabled");
+      aiAskBtn.removeAttribute("disabled");
+    }
+  });
+
+  refreshBtn.addEventListener("click", async () => {
+    try {
+      const p: ProblemPageInfo = await services.invoke("oj_open_problem", { problemUrl: info.problem_url });
+      info = p;
+      titleLabel.textContent = nonEmpty(info.title) ?? "Problem";
+      translation = null;
+      translationStatus = "";
+      showingOriginal = false;
+      applyCachedTranslation();
+      resetSubmitPanel();
+      await loadSubmit();
+      services.setGlobalStatus(true, "");
+    } catch (e) {
+      services.setGlobalStatus(false, String(e));
     }
   });
 
@@ -1122,22 +1052,17 @@ ${resp}`;
 
   homeBtn.addEventListener("click", () => services.goHome());
 
+  window.addEventListener("keydown", (ev) => {
+    const e = ev as KeyboardEvent;
+    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "r") {
+      e.preventDefault();
+      void refreshBtn.click();
+    }
+  });
+
   // init
   setToolsExpanded(true);
   setAiPanelVisible(false);
-
-  window.setTimeout(() => {
-    applyContentSizes();
-    applyWorkspaceSizes();
-    applySubmitPaneSizes();
-    applyTestPaneSizes();
-  }, 0);
-  window.addEventListener("resize", () => {
-    applyContentSizes();
-    applyWorkspaceSizes();
-    applySubmitPaneSizes();
-    applyTestPaneSizes();
-  });
 
   // translation cache
   applyCachedTranslation();
@@ -1173,42 +1098,3 @@ ${resp}`;
     },
   };
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

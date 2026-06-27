@@ -1,4 +1,4 @@
-﻿:root {
+:root {
   color-scheme: light dark;
   font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, "Microsoft YaHei UI",
     "Microsoft YaHei", sans-serif;
@@ -896,11 +896,10 @@ button:hover {
 
 #problemBottomRow {
   display: grid;
-  grid-template-columns: 1fr 4fr;
+  grid-template-columns: auto 1fr;
   gap: 18px;
-  align-items: start;
+  align-items: stretch;
 }
-
 #problemContentSplitter {
   display: grid;
   grid-template-columns: 1fr 4px 1fr;
@@ -1037,6 +1036,7 @@ button:hover {
   background: transparent;
   text-align: left;
   padding: 10px 12px;
+}
 
 #classToolButton:hover,
 #contestToolButton:hover,
@@ -1062,4 +1062,324 @@ button:hover {
 }
 
 
+
+
+/* ===== ProblemPage (Qt parity) ===== */
+
+#problemPage #problemTopFrame,
+#problemPage #problemLeftFrame,
+#problemPage #problemMiddleFrame,
+#problemPage #problemRightFrame,
+#problemPage #problemAiFrame {
+  gap: 10px;
+  border-radius: 16px;
+  border: 1px solid var(--border);
+  background: var(--card-bg);
+}
+
+#problemPage [data-obj="problemTitleLabel"],
+#problemTitleLabel {
+  font-size: 28px;
+  font-weight: 600;
+}
+
+#problemPage [data-obj="problemSectionLabel"] {
+  font-size: 16px;
+  font-weight: 600;
+}
+
+#problemPage [data-obj="problemAiMetaLabel"],
+#problemPage [data-obj="problemAiFieldLabel"] {
+  color: var(--muted);
+}
+
+#problemPage #problemLeftFrame {
+  align-content: start;
+}
+
+#problemPage #problemToolsPanel {
+  align-content: start;
+}
+
+#problemPage #problemToolsToggleButton {
+  border: none;
+  background: transparent;
+  padding: 0;
+  text-align: left;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+#problemPage #problemToolsPanel {
+  display: grid;
+  gap: 6px;
+}
+
+#problemPage [data-obj="problemToolButton"] {
+  border: none;
+  background: transparent;
+  text-align: left;
+  padding: 5px 10px;
+  min-height: 30px;
+  font-size: 14px;
+  border-radius: 10px;
+}
+
+#problemPage [data-obj="problemToolIconButton"] {
+  min-width: 36px;
+  max-width: 36px;
+  min-height: 36px;
+  max-height: 36px;
+  border: none;
+  border-radius: 10px;
+  background: transparent;
+  font-weight: 600;
+}
+
+#problemPage [data-obj="problemToolButton"]:hover,
+#problemPage [data-obj="problemToolIconButton"]:hover {
+  background: rgba(127, 127, 127, 0.08);
+}
+
+:root[data-theme="dark"] #problemPage [data-obj="problemToolButton"]:hover,
+:root[data-theme="dark"] #problemPage [data-obj="problemToolIconButton"]:hover {
+  background: rgba(38, 49, 60, 0.90);
+}
+
+#problemPage .problemFlexSpacer {
+  flex: 1;
+}
+
+#problemPage .problemHeaderRow {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+#problemPage .problemHeaderActions {
+  margin-left: auto;
+  display: flex;
+  gap: 8px;
+}
+
+#problemPage [data-obj="problemRefreshButton"],
+#problemPage #problemInputButton,
+#problemPage #problemSubmitButton {
+  min-width: 88px;
+  padding: 8px 14px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--btn-bg);
+}
+
+#problemPage [data-obj="problemRefreshButton"]:hover,
+#problemPage #problemInputButton:hover,
+#problemPage #problemSubmitButton:hover {
+  background: var(--btn-bg-hover);
+}
+
+#problemPage [data-obj="problemResultTabButton"] {
+  min-width: 72px;
+  padding: 6px 12px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--btn-bg);
+  color: var(--muted);
+}
+
+#problemPage [data-obj="problemResultTabButton"][data-checked="true"] {
+  background: rgba(59, 130, 246, 0.16);
+  border-color: rgba(59, 130, 246, 0.40);
+  color: var(--text);
+}
+
+#problemPage .problemResultTabRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+#problemPage .problemResultTabs {
+  display: flex;
+  gap: 8px;
+}
+
+#problemPage .problemResultActions {
+  margin-left: auto;
+  display: flex;
+  gap: 8px;
+}
+
+#problemPage #problemDetailText,
+#problemPage [data-obj="problemResultText"],
+#problemPage [data-obj="problemCodeEdit"],
+#problemPage #problemLanguageCombo {
+  background: rgba(127, 127, 127, 0.06);
+  border: 1px solid rgba(127, 127, 127, 0.35);
+  border-radius: 12px;
+  color: inherit;
+  box-sizing: border-box;
+}
+
+:root[data-theme="dark"] #problemPage #problemDetailText,
+:root[data-theme="dark"] #problemPage [data-obj="problemResultText"],
+:root[data-theme="dark"] #problemPage [data-obj="problemCodeEdit"],
+:root[data-theme="dark"] #problemPage #problemLanguageCombo {
+  background: rgba(18, 25, 32, 0.85);
+  border-color: rgba(44, 56, 68, 0.90);
+}
+
+#problemPage #problemLanguageCombo {
+  padding: 6px 10px;
+  min-height: 34px;
+}
+
+#problemPage [data-obj="problemResultText"] {
+  min-height: 140px;
+  padding: 10px 12px;
+  resize: vertical;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+}
+
+#problemPage [data-obj="problemCodeEdit"] {
+  min-height: 120px;
+  padding: 10px 12px;
+  resize: vertical;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+}
+
+#problemPage .problemAiAskRow {
+  display: flex;
+  justify-content: flex-end;
+}
+/* Submit pane layout tightening (Qt parity) */
+#problemPage #problemResultStack {
+  height: 100%;
+}
+
+#problemPage #problemTestPaneSplitter {
+  height: 100%;
+}
+
+#problemPage .problemTestPane {
+  height: 100%;
+}
+
+#problemPage #problemRightFrame {
+  grid-template-rows: auto auto 1fr;
+  gap: 14px;
+}
+
+#problemPage #problemSubmitPaneSplitter {
+  height: 100%;
+  min-height: 0;
+}
+
+#problemPage #problemResultPanel {
+  grid-template-rows: auto 1fr;
+  min-height: 0;
+  gap: 14px;
+}
+
+#problemPage #problemResultStack,
+#problemPage #problemTestPaneSplitter,
+#problemPage .problemTestPane {
+  min-height: 0;
+}
+
+#problemPage #problemResultStack textarea[data-obj="problemResultText"],
+#problemPage #problemResultStack > textarea[data-obj="problemResultText"] {
+  resize: none;
+  width: 100%;
+  height: 100%;
+}
+
+#problemPage #problemAiFrame textarea[data-obj="problemResultText"] {
+  resize: none;
+  height: auto;
+}
+
+#problemPage #problemRightFrame #problemCodeEdit {
+  background: rgba(127, 127, 127, 0.06);
+  border: 1px solid rgba(127, 127, 127, 0.35);
+  border-radius: 12px;
+  min-height: 0;
+}
+
+:root[data-theme="dark"] #problemPage #problemRightFrame #problemCodeEdit {
+  background: rgba(15, 20, 26, 0.85);
+  border-color: rgba(44, 56, 68, 0.90);
+}
+
+#problemPage #problemRightFrame #problemCodeEdit:focus-within {
+  border-color: rgba(59, 130, 246, 0.40);
+}
+
+#problemPage #problemRightFrame #problemCodeEdit .code-editor,
+#problemPage #problemRightFrame #problemCodeEdit .code-area-wrap {
+  height: 100%;
+  min-height: 0;
+}
+
+#problemPage #problemRightFrame #problemCodeEdit .code-lines {
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+}
+
+#problemPage #problemRightFrame #problemCodeEdit .code-area {
+  height: 100%;
+  min-height: 0;
+  resize: none;
+}
+
+#problemPage #problemRightFrame #problemCodeEdit .code-hl {
+  overflow: hidden;
+}
+
+
+/* ProblemPage Tools collapse width (Qt parity) */
+#problemPage #problemLeftFrame {
+  width: 280px;
+}
+
+#problemPage #problemLeftFrame.collapsed {
+  width: 84px;
+}
+
+
+/* ProblemPage workspace grid shrink fixes (prevent overlap) */
+#problemPage #problemContentSplitter,
+#problemPage #problemWorkspaceSplitter,
+#problemPage #problemTestPaneSplitter,
+#problemPage #problemSubmitPaneSplitter {
+  min-width: 0;
+  min-height: 0;
+}
+
+#problemPage #problemContentSplitter > *,
+#problemPage #problemWorkspaceSplitter > *,
+#problemPage #problemTestPaneSplitter > *,
+#problemPage #problemSubmitPaneSplitter > * {
+  min-width: 0;
+  min-height: 0;
+}
+
+#problemPage #problemRightFrame,
+#problemPage #problemAiFrame,
+#problemPage #problemMiddleFrame {
+  min-width: 0;
+}
+
+
+/* ProblemPage AI frame compact layout (Qt parity) */
+#problemPage #problemAiFrame {
+  grid-template-rows: auto auto auto 1fr auto auto auto;
+  align-content: start;
+  gap: 10px;
+}
+
+#problemPage #problemAiFrame > textarea[data-obj="problemResultText"] {
+  min-height: 0;
+  height: 100%;
 }
