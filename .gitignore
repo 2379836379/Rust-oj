@@ -7,3 +7,6 @@ src-tauri/target/
 # OS
 .DS_Store
 Thumbs.db
+
+实践报告.md
+tech.md

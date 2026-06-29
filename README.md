@@ -1,8 +1,4 @@
 ﻿# Rust-oj
-## Project principles
-
-- Syntax highlighting: **Python only**.
-- AI: **basic chat only** (no tool calling).
 
 ## Layout
 
