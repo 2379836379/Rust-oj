@@ -33,9 +33,6 @@ cd r/oj-client/src-tauri
 cargo check
 ```
 
-## Tech report
-
-- See `r/oj-client/tech.md`
 
 
 
